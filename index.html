@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="Estimated postcode areas for Pakistan, modelled from union council boundaries.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pakistan postcode areas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg:#E6E9E3; --land:#F4F5F1; --panel:#FBFBF8; --ink:#1C2B27; --muted:#5E6B66; --line:#C9CFC7;
+  --accent:#B5121B; --chip:#EEF0EB; --shadow:0 6px 24px rgba(28,43,39,.16);
+  --cA:#2E7D6B; --cB:#8DB580; --cC:#E2B04A; --cD:#A63D40; --city:#1C2B27;
+  color-scheme: light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141B19; --land:#1E2724; --panel:#212B28; --ink:#E6ECE8; --muted:#9AA8A2; --line:#3A4743;
+  --accent:#FF5A5F; --chip:#2A3532; --shadow:0 6px 24px rgba(0,0,0,.45);
+  --cA:#3FA58C; --cB:#93BF86; --cC:#E7B957; --cD:#D2665F; --city:#F2F5F3; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#141B19; --land:#1E2724; --panel:#212B28; --ink:#E6ECE8; --muted:#9AA8A2; --line:#3A4743;
+  --accent:#FF5A5F; --chip:#2A3532; --shadow:0 6px 24px rgba(0,0,0,.45);
+  --cA:#3FA58C; --cB:#93BF86; --cC:#E7B957; --cD:#D2665F; --city:#F2F5F3; color-scheme:dark; }
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
+#map{position:absolute;inset:0;background:var(--bg)}
+.loading{position:absolute;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px;box-shadow:var(--shadow);font-size:14px}
+.dl a{color:var(--ink)}
+.dl{font-size:13px;color:var(--muted);margin:14px 0 0;border-top:1px solid var(--line);padding-top:10px}
+.leaflet-container{background:var(--bg);font:inherit}
+.panel{position:absolute;z-index:1000;top:calc(14px + env(safe-area-inset-top,0px));left:14px;width:352px;max-height:calc(100% - 28px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.head{padding:16px 18px 10px}
+h1{font-size:21px;line-height:1.15;margin:0 0 6px;font-weight:700;letter-spacing:-.01em}
+.sub{margin:0;color:var(--muted);font-size:13.5px}
+.body{padding:4px 18px 16px;overflow:auto}
+.search{position:relative;margin:8px 0 12px}
+.search input{width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--land);color:var(--ink)}
+.search input:focus{outline:none;border-color:var(--ink)}
+.results{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--land)}
+.results:empty{display:none}
+.results li{padding:8px 12px;cursor:pointer;display:flex;gap:10px;align-items:baseline;border-top:1px solid var(--line)}
+.results li:first-child{border-top:0}
+.results li:hover,.results li[aria-selected="true"]{background:var(--chip)}
+.results b{min-width:48px}
+.results .s{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+label.tg{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer;margin-right:10px}
+label.tg input{accent-color:var(--ink)}
+.legend{display:grid;grid-template-columns:14px 1fr;gap:5px 9px;font-size:13px;margin:8px 0 4px;align-items:center}
+.legend i{width:14px;height:14px;border-radius:4px;display:block}
+.legend .n{color:var(--muted)}
+.card{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.card:empty{display:none}
+.pc{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.office{font-size:16px;font-weight:600;margin:4px 0 10px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0;font-size:13.5px}
+dt{color:var(--muted)} dd{margin:0}
+.note{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12.5px;font-weight:600;color:#fff}
+.toggle{display:none}
+details.nl{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+details.nl summary{cursor:pointer;font-weight:600;font-size:14.5px;list-style-position:outside}
+details.nl summary .n{color:var(--muted);font-weight:400}
+details.nl p{font-size:12.5px;color:var(--muted);margin:6px 0 8px}
+details.nl select{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--land);color:var(--ink)}
+#nlList{max-height:220px;overflow:auto}
+.hatch{display:block;width:14px;height:14px;border-radius:50%;border:2px dashed var(--accent)}
+.nlb{display:grid;place-items:center;border-radius:50%;border:2px dashed var(--accent);background:color-mix(in srgb,var(--panel) 82%,transparent);color:var(--accent);font-weight:700;font-size:12px;box-shadow:var(--shadow);cursor:pointer}
+button:focus-visible,input:focus-visible,li:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.leaflet-tooltip{background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);font:inherit;font-size:13px}
+.leaflet-tooltip-top:before{border-top-color:var(--line)}
+.leaflet-control-zoom a{background:var(--panel);color:var(--ink);border-color:var(--line)!important}
+.leaflet-bottom{bottom:env(safe-area-inset-bottom,0px)}
+.leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent)!important;color:var(--muted)}
+.leaflet-control-attribution a{color:var(--ink)}
+.tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--line)}
+.tabs button{font:inherit;font-size:13.5px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:9px 8px 10px;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .cnt{font-weight:400;color:var(--muted)}
+.f label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.f input,.f select,.f textarea{width:100%;font:inherit;font-size:15px;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--land);color:var(--ink)}
+.f textarea{resize:vertical}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--ink)}
+.f .hint{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:1em}
+.pick{display:flex;gap:8px;align-items:stretch}
+.pick input{flex:1;min-width:0}
+.btn{font:inherit;font-size:14px;font-weight:600;border-radius:10px;padding:9px 14px;cursor:pointer;border:1.5px solid var(--ink);background:transparent;color:var(--ink);white-space:nowrap}
+.btn.primary{background:var(--ink);color:var(--panel);width:100%;margin-top:14px;padding:11px}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{font-size:12.5px;padding:5px 10px;border-radius:8px}
+.msg{font-size:13px;margin:8px 0 0;min-height:1em}
+.msg.err{color:var(--accent)}
+.sublist{list-style:none;padding:0;margin:8px 0 0}
+.sublist li{border-top:1px solid var(--line);padding:9px 0;font-size:13px}
+.sublist .t{font-weight:600}
+.sublist .m{color:var(--muted)}
+.sublist .acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.st{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:999px;border:1px solid var(--line)}
+.st.accepted{background:var(--cA);color:#fff;border-color:transparent}.st.rejected{background:var(--muted);color:var(--panel);border-color:transparent}
+.leaflet-container.picking{cursor:crosshair}
+h2{font-size:15px;margin:16px 0 4px}
+@media (max-width:640px){
+  .panel{left:8px;right:8px;width:auto;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));max-height:58%}
+  .panel.collapsed .body{display:none}
+  .toggle{display:inline-block;float:right;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink);padding:4px 10px;margin-top:-2px}
+  h1{font-size:18px}
+  .leaflet-bottom.leaflet-right{bottom:auto;top:calc(8px + env(safe-area-inset-top,0px))}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="map" role="application" aria-label="Map of postcode areas"></div>
+<div id="loading" class="loading" role="status">Loading postcode areas…</div>
+<section class="panel" id="panel">
+  <div class="head">
+    <button class="toggle" id="toggle" aria-expanded="true">Hide</button>
+    <h1>Pakistan postcode areas</h1>
+    <p class="sub">Estimated from union council boundaries. These aren’t official Pakistan Post boundaries.</p>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="explore" aria-selected="true">Explore</button>
+    <button role="tab" data-tab="fix" aria-selected="false">Suggest a correction</button>
+  </div>
+  <div class="body">
+   <div id="pane-explore">
+    <div class="search">
+      <input id="q" type="search" placeholder="Search a postcode or post office" autocomplete="off" aria-label="Search a postcode or post office" aria-controls="results">
+      <ul class="results" id="results" role="listbox"></ul>
+    </div>
+    <div class="row">
+      <span style="font-size:13.5px;color:var(--muted)">Colour</span>
+      <div class="seg" role="group" aria-label="Colour areas by">
+        <button id="mConf" aria-pressed="true">Confidence</button><button id="mDist" aria-pressed="false">Distinct</button>
+      </div>
+    </div>
+    <div class="row">
+      <label class="tg"><input type="checkbox" id="tCity" checked> City parts</label>
+      <label class="tg"><input type="checkbox" id="tOff"> Post offices</label>
+      <label class="tg"><input type="checkbox" id="tNL" checked> Not located</label>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="card" id="card"></div>
+    <details class="nl" id="nl">
+      <summary>Not located <span class="n" id="nlCount"></span></summary>
+      <p>These postcodes have no area because their office couldn’t be placed. Pick one to see why and which GPO’s area it’s somewhere inside.</p>
+      <select id="gpoSel" aria-label="Filter by account office"></select>
+      <ul class="results" id="nlList" role="listbox" aria-label="Not located postcodes"></ul>
+    </details>
+    <p class="dl">Download the data: <a href="downloads/pk_postcodes.gpkg">GeoPackage</a>, <a href="downloads/pk_postcodes_shapefile.zip">shapefiles</a>, <a href="downloads/pk_postcode_status.csv">status CSV</a>, <a href="downloads/pk_uc_to_postcode.csv">union council lookup</a>.</p>
+   </div>
+   <div id="pane-fix" class="f" hidden>
+    <p class="note" style="margin-top:10px">Know where a post office really is, or spotted a wrong area? Tell us and we’ll fix the map.</p>
+    <label for="fPc">Postcode</label>
+    <input id="fPc" inputmode="numeric" maxlength="5" placeholder="e.g. 75400" autocomplete="off">
+    <div class="hint" id="fPcName"></div>
+    <label for="fType">What needs fixing</label>
+    <select id="fType">
+      <option value="office_location">The post office is somewhere else</option>
+      <option value="locate_missing">I know where this unplaced office is</option>
+      <option value="area">The area’s boundary is wrong</option>
+      <option value="other">Something else</option>
+    </select>
+    <label for="fLatLon">Correct location</label>
+    <div class="pick"><input id="fLatLon" placeholder="Paste lat, long or pick on map"><button type="button" class="btn" id="fPick">Pick on map</button></div>
+    <div class="hint" id="fLocHint">Click Pick on map, then click the spot. You can also paste coordinates from Google Maps.</div>
+    <label for="fNote">Details</label>
+    <textarea id="fNote" rows="3" maxlength="1000" placeholder="Street, landmark, or what’s wrong with the area"></textarea>
+    <label for="fEmail">Your email</label>
+    <input id="fEmail" type="email" autocomplete="email" placeholder="So we know who sent it">
+    <button type="button" class="btn primary" id="fSend">Send correction</button>
+    <p class="msg" id="fMsg" role="status"></p>
+    <h2 id="mineHead" hidden>Your corrections</h2>
+    <ul class="sublist" id="mine"></ul>
+   </div>
+  </div>
+</section>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="config.js"></script>
+<script>
+(async function(){
+const loading=document.getElementById('loading');
+let D;
+try{
+  const get=u=>fetch(u).then(r=>{ if(!r.ok) throw new Error(u+' '+r.status); return r.json(); });
+  const [areasFc,cityFc,status]=await Promise.all([get('data/postcode_areas.geojson'),get('data/city_parts.geojson'),get('data/status.json')]);
+  D={areas:areasFc,city:cityFc,status};
+  loading.remove();
+}catch(e){ loading.textContent='Couldn’t load the map data. If you opened this file directly, serve the folder instead (see README).'; return; }
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const CONF = {A:'Name and location agree',B:'Name match',C:'Location only',D:'Weak match'};
+const NL = D.status.filter(r=>r[2]==='Not located');
+let gpoHi=[];
+function clearGpo(){ gpoHi.forEach(l=>areas.resetStyle(l)); gpoHi=[]; }
+const map = L.map('map',{preferCanvas:true,zoomControl:false,minZoom:4});
+const isDark=()=>document.documentElement.dataset.theme==='dark'||(matchMedia('(prefers-color-scheme: dark)').matches&&document.documentElement.dataset.theme!=='light');
+let tiles=null;
+function setTiles(){ if(tiles) map.removeLayer(tiles); tiles=L.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark()?'dark_all':'light_all'}/{z}/{x}/{y}{r}.png`,{subdomains:'abcd',maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map); tiles.bringToBack(); }
+setTiles();
+map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>').addAttribution('Areas: modelled from ALHASAN union councils, <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0), <a href="https://www.naturalearthdata.com/">Natural Earth</a>');
+L.control.zoom({position:'bottomright'}).addTo(map);
+let mode='conf';
+const hue = pc => { let h=0; for(const ch of pc) h=(h*31+ch.charCodeAt(0))%360; return h; };
+function fillFor(p){
+  if(mode==='conf') return css('--c'+p.c);
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme!=='light';
+  return `hsl(${hue(p.pc)} 45% ${dark?38:72}%)`;
+}
+function style(f){ return {color:css('--panel'),weight:.8,fillColor:fillFor(f.properties),fillOpacity:.45}; }
+const byPc = {}; let selected=null;
+const areas = L.geoJSON(D.areas,{style,onEachFeature:(f,l)=>{
+  byPc[f.properties.pc]=l;
+  l.bindTooltip(`<b>${f.properties.pc}</b> ${f.properties.o}`,{sticky:true,direction:'top',opacity:1});
+  l.on('click',()=>select(f.properties.pc,false));
+}}).addTo(map);
+const cityStyle = ()=>({color:css('--city'),weight:.9,fillColor:css('--city'),fillOpacity:.22,interactive:false});
+const city = L.geoJSON(D.city,{style:cityStyle}).addTo(map);
+const offices = L.layerGroup(D.areas.features.map(f=>L.circleMarker([f.properties.y,f.properties.x],{radius:3,weight:1,color:css('--panel'),fillColor:css('--ink'),fillOpacity:1,interactive:false})));
+map.fitBounds(areas.getBounds(),{padding:[20,20]});
+function restyle(){ areas.setStyle(style); city.setStyle(cityStyle); if(selected) byPc[selected].setStyle({color:css('--accent'),weight:3}); legend(); }
+function legend(){
+  const el=document.getElementById('legend');
+  if(mode!=='conf'){ el.innerHTML='<span></span><span class="n">Each postcode gets its own colour. Click an area for details.</span>'; return; }
+  const n={}; D.areas.features.forEach(f=>n[f.properties.c]=(n[f.properties.c]||0)+1);
+  el.innerHTML=Object.keys(CONF).map(k=>`<i style="background:var(--c${k})"></i><span>${CONF[k]} <span class="n">${n[k]||0}</span></span>`).join('')
+    + `<i style="background:var(--city);opacity:.35;border:1px solid var(--city)"></i><span>City or town part</span>`
+    + `<i class="hatch"></i><span>Not located <span class="n">${NL.length} codes, no area</span></span>`;
+}
+function fmt(x){ return Number(x).toLocaleString('en-US'); }
+function select(pc, fly=true){
+  const card=document.getElementById('card');
+  if(selected && byPc[selected]) areas.resetStyle(byPc[selected]);
+  selected=null; clearGpo();
+  const l=byPc[pc];
+  const nl=NL.find(r=>r[0]===pc);
+  if(!l && nl){
+    const accts=nl[3].split(', ');
+    areas.eachLayer(x=>{ const a=x.feature.properties.a.split(', '); if(a.some(v=>accts.includes(v))){ x.setStyle({color:css('--accent'),weight:1.6,dashArray:'4 3'}); gpoHi.push(x);} });
+    if(gpoHi.length && fly) map.flyToBounds(L.featureGroup(gpoHi).getBounds(),{padding:[30,30],duration:.6});
+    card.innerHTML=`<div class="pc">${nl[0]}</div><div class="office">${nl[1]}</div><dl><dt>Status</dt><dd>Not located, no area drawn</dd>
+      <dt>Why</dt><dd>${nl[4]}</dd><dt>Account office</dt><dd>${nl[3]}</dd><dt>Probably in</dt><dd>${nl[5]||'Unknown'}</dd></dl>
+      <p class="note">The dashed outline shows every area run by ${nl[3]}. This office is somewhere inside it; its ground is currently drawn under neighbouring codes.</p>`;
+    if(location.hash!=='#'+pc) history.replaceState(null,'','#'+pc);
+    return;
+  }
+  if(!l){
+    const s=D.status.find(r=>r[0]===pc);
+    card.innerHTML = s ? `<div class="pc">${s[0]}</div><div class="office">${s[1]}</div><dl><dt>Status</dt><dd>${s[2]}</dd><dt>Account office</dt><dd>${s[3]}</dd></dl>
+      <p class="note">${s[2].toLowerCase().startsWith('merged')?'This office sits at the same spot as another office, so its area is drawn under that code.':s[2].toLowerCase().startsWith('institution')?'This code serves a single institution, so it has no area of its own.':'This office couldn’t be placed on the map, so no area is drawn. Its neighbours’ areas cover the ground instead.'}</p>` : '';
+    return;
+  }
+  selected=pc; l.setStyle({color:css('--accent'),weight:3}); l.bringToFront();
+  if(fly) map.flyToBounds(l.getBounds(),{padding:[40,40],maxZoom:13,duration:.6});
+  const p=l.feature.properties;
+  const cityLine = p.ci ? `${p.ci} (${Math.round(p.cs*100)}% of the area)` : 'No town in this area';
+  card.innerHTML = `<div class="pc">${p.pc}</div><div class="office">${p.o}</div>
+   <dl><dt>Confidence</dt><dd><span class="badge" style="background:var(--c${p.c})">${p.c}</span> ${CONF[p.c]}</dd>
+   <dt>Branch code</dt><dd>${p.b}</dd><dt>Account office</dt><dd>${p.a}</dd>
+   <dt>Area</dt><dd>${fmt(p.k)} km²</dd><dt>City or town</dt><dd>${cityLine}</dd>
+   <dt>Placed by</dt><dd>${p.l}</dd></dl>
+   ${p.g!=null && p.g<0.6 ? `<p class="note">Only ${Math.round(p.g*100)}% of this GPO’s offices could be placed, so this area is probably larger than the real one.</p>`:''}`;
+  if(location.hash!=='#'+pc) history.replaceState(null,'','#'+pc);
+}
+// search
+const q=document.getElementById('q'), res=document.getElementById('results');
+const idx=D.status.map(r=>({pc:r[0],o:r[1],st:r[2],key:(r[0]+' '+r[1]).toLowerCase()}));
+let active=-1;
+function render(list){
+  res.innerHTML=list.map((r,i)=>`<li role="option" data-pc="${r.pc}" aria-selected="${i===active}"><b>${r.pc}</b><span>${r.o}</span><span class="s">${byPc[r.pc]?'':r.st.toLowerCase()}</span></li>`).join('');
+}
+q.addEventListener('input',()=>{
+  const t=q.value.trim().toLowerCase(); active=-1;
+  if(!t){res.innerHTML='';return;}
+  const hits=idx.filter(r=>r.key.includes(t)).sort((a,b)=>(a.pc.startsWith(t)?0:1)-(b.pc.startsWith(t)?0:1)).slice(0,8);
+  render(hits); if(!hits.length) res.innerHTML='<li aria-disabled="true">No postcode or office matches that. Try part of the name.</li>';
+});
+q.addEventListener('keydown',e=>{
+  const items=[...res.querySelectorAll('li[data-pc]')]; if(!items.length) return;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); active=(active+(e.key==='ArrowDown'?1:-1)+items.length)%items.length; items.forEach((li,i)=>li.setAttribute('aria-selected',i===active)); }
+  if(e.key==='Enter'){ const li=items[Math.max(active,0)]; pick(li.dataset.pc); }
+});
+res.addEventListener('click',e=>{ const li=e.target.closest('li[data-pc]'); if(li) pick(li.dataset.pc); });
+function pick(pc){ res.innerHTML=''; q.value=pc; select(pc); }
+// controls
+const mConf=document.getElementById('mConf'), mDist=document.getElementById('mDist');
+function setMode(m){ mode=m; mConf.setAttribute('aria-pressed',m==='conf'); mDist.setAttribute('aria-pressed',m!=='conf'); restyle(); }
+mConf.onclick=()=>setMode('conf'); mDist.onclick=()=>setMode('dist');
+document.getElementById('tCity').onchange=e=>e.target.checked?city.addTo(map):map.removeLayer(city);
+document.getElementById('tOff').onchange=e=>e.target.checked?offices.addTo(map):map.removeLayer(offices);
+const panel=document.getElementById('panel'), tg=document.getElementById('toggle');
+tg.onclick=()=>{ const c=panel.classList.toggle('collapsed'); tg.textContent=c?'Show':'Hide'; tg.setAttribute('aria-expanded',!c); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ setTiles(); restyle(); });
+new MutationObserver(restyle).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+// not-located browser
+const sel=document.getElementById('gpoSel'), nlList=document.getElementById('nlList');
+document.getElementById('nlCount').textContent=NL.length;
+const byG={}; NL.forEach(r=>(byG[r[3]]=byG[r[3]]||[]).push(r));
+const gs=Object.keys(byG).sort((a,b)=>byG[b].length-byG[a].length||a.localeCompare(b));
+sel.innerHTML=`<option value="">All account offices (${NL.length})</option>`+gs.map(g=>`<option value="${g}">${g} (${byG[g].length})</option>`).join('');
+function renderNL(){ const list=sel.value?byG[sel.value]:NL; nlList.innerHTML=list.map(r=>`<li role="option" data-pc="${r[0]}"><b>${r[0]}</b><span>${r[1]}</span></li>`).join(''); }
+sel.onchange=()=>{ renderNL(); if(sel.value) highlightGpo(sel.value); }; renderNL();
+const nlBox=document.getElementById('nl');
+function highlightGpo(g){
+  if(selected&&byPc[selected]) areas.resetStyle(byPc[selected]); selected=null; clearGpo();
+  areas.eachLayer(x=>{ if(x.feature.properties.a.split(', ').includes(g)){ x.setStyle({color:css('--accent'),weight:1.6,dashArray:'4 3'}); gpoHi.push(x);} });
+  if(gpoHi.length) map.flyToBounds(L.featureGroup(gpoHi).getBounds(),{padding:[30,30],duration:.6});
+  document.getElementById('card').innerHTML=`<div class="office">${g}</div><p class="note">${byG[g].length} postcodes under this GPO couldn’t be placed. They’re somewhere inside the dashed outline. Pick one from the list for details.</p>`;
+}
+nlList.addEventListener('click',e=>{ const li=e.target.closest('li[data-pc]'); if(li) select(li.dataset.pc); });
+// one dashed bubble per GPO, sized by how many of its postcodes are not located
+const gpoPts={}; D.areas.features.forEach(f=>f.properties.a.split(', ').forEach(a=>(gpoPts[a]=gpoPts[a]||[]).push([f.properties.y,f.properties.x])));
+const nlLayer=L.layerGroup();
+Object.entries(byG).forEach(([g,list])=>{
+  const pts=gpoPts[g]; if(!pts) return;
+  const lat=pts.reduce((s,p)=>s+p[0],0)/pts.length, lon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  const sz=Math.round(22+Math.sqrt(list.length)*5);
+  const m=L.marker([lat,lon],{icon:L.divIcon({className:'',html:`<div class="nlb" style="width:${sz}px;height:${sz}px">${list.length}</div>`,iconSize:[sz,sz]}),title:`${g}: ${list.length} not located`});
+  m.bindTooltip(`<b>${list.length} not located</b><br>${g}`,{direction:'top',opacity:1});
+  m.on('click',()=>{ nlBox.open=true; sel.value=g; renderNL(); highlightGpo(g); });
+  nlLayer.addLayer(m);
+});
+nlLayer.addTo(map);
+document.getElementById('tNL').onchange=e=>e.target.checked?nlLayer.addTo(map):map.removeLayer(nlLayer);
+// ================= corrections =================
+const TYPES={office_location:'Office is somewhere else',locate_missing:'Locate an unplaced office',area:'Area boundary is wrong',other:'Other'};
+const $=id=>document.getElementById(id);
+const tabs=[...document.querySelectorAll('.tabs [data-tab]')];
+function showTab(name){ tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name)); ['explore','fix'].forEach(n=>$('pane-'+n).hidden=n!==name); if(name!=='fix') setPicking(false); if(panel.classList.contains('collapsed')) tg.click(); }
+tabs.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+const statusOf = pc => D.status.find(r=>r[0]===pc);
+function pcHint(){ const v=$('fPc').value.trim(); const s=statusOf(v); $('fPcName').textContent = !v?'':s?`${s[1]}, ${s[2].toLowerCase()}`:'Not a delivery postcode in the official list'; if(s && s[2]==='Not located') $('fType').value='locate_missing'; }
+$('fPc').addEventListener('input',pcHint);
+// pick on map
+let picking=false, pickMarker=null;
+function setPicking(on){ picking=on; $('fPick').classList.toggle('on',on); $('fPick').textContent=on?'Click the map…':'Pick on map'; map.getContainer().classList.toggle('picking',on); }
+$('fPick').onclick=()=>setPicking(!picking);
+function setPick(ll){
+  const lat=+ll.lat.toFixed(5), lng=+ll.lng.toFixed(5);
+  $('fLatLon').value=`${lat}, ${lng}`;
+  if(!pickMarker) pickMarker=L.marker([lat,lng],{draggable:true,icon:L.divIcon({className:'',html:'<div class="nlb" style="width:18px;height:18px;border-style:solid;background:var(--accent)"></div>',iconSize:[18,18]})}).addTo(map).on('dragend',e=>setPick(e.target.getLatLng()));
+  else pickMarker.setLatLng([lat,lng]);
+  setPicking(false);
+}
+map.on('click',e=>{ if(picking) setPick(e.latlng); });
+areas.eachLayer(l=>{ l.off('click'); l.on('click',e=>{ if(picking){ setPick(e.latlng); return; } select(l.feature.properties.pc,false); }); });
+$('fLatLon').addEventListener('change',()=>{ const m=$('fLatLon').value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/); if(m){ setPick({lat:+m[1],lng:+m[2]}); map.panTo([+m[1],+m[2]]); } });
+try{ const e=localStorage.getItem('pc_email'); if(e) $('fEmail').value=e; }catch(_){}
+// "Suggest a correction" from the details card
+const _select=select;
+select=function(pc,fly){ _select(pc,fly); const c=$('card'); if(c.innerHTML.trim()){ const b=document.createElement('button'); b.className='btn sm'; b.style.marginTop='12px'; b.textContent='Suggest a correction'; b.onclick=()=>{ $('fPc').value=pc; pcHint(); showTab('fix'); $('fLatLon').focus(); }; c.appendChild(b);} };
+// ---- sending corrections (backend set in config.js)
+const CFG=(window.MAP_CONFIG&&window.MAP_CONFIG.corrections)||{};
+const GF=CFG.googleForm||{};
+const hasGF=!!(GF.action&&GF.fields&&GF.fields.postcode);
+const backend=hasGF?'google':CFG.formspree?'formspree':CFG.email?'email':null;
+if(!backend){ $('fSend').disabled=true; $('fMsg').className='msg err'; $('fMsg').textContent='Corrections aren’t switched on for this copy of the map yet.'; }
+const subLayer=L.layerGroup().addTo(map);
+function fmtDate(s){ try{ return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(_){ return s; } }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function loadMine(){ try{ return JSON.parse(localStorage.getItem('pc_sent')||'[]'); }catch(_){ return []; } }
+function renderMine(){
+  const items=loadMine();
+  $('mineHead').hidden=!items.length;
+  $('mine').innerHTML=items.slice().reverse().map(r=>`<li><span class="t">${esc(r.pc)}</span> ${esc(r.office)}<div class="m">${esc(TYPES[r.type]||r.type)}${r.lat!=null?`, ${r.lat}, ${r.lon}`:''}, sent ${fmtDate(r.created)}</div>${r.note?`<div>${esc(r.note)}</div>`:''}</li>`).join('');
+  subLayer.clearLayers();
+  items.forEach(r=>{ if(r.lat!=null) L.circleMarker([r.lat,r.lon],{radius:6,weight:2,color:css('--accent'),fillColor:css('--panel'),fillOpacity:1}).bindTooltip(`<b>${esc(r.pc)}</b> your correction`,{direction:'top',opacity:1}).addTo(subLayer); });
+}
+renderMine();
+function fail(msg){ $('fMsg').className='msg err'; $('fMsg').textContent=msg; }
+async function send(rec){
+  const typeLabel=TYPES[rec.type];
+  if(backend==='google'){
+    const f=GF.fields, body=new FormData();
+    const put=(k,v)=>{ if(f[k]) body.append(f[k],v??''); };
+    put('postcode',rec.pc); put('office',rec.office); put('issue',typeLabel); put('lat',rec.lat); put('lon',rec.lon); put('details',rec.note); put('email',rec.email);
+    await fetch(GF.action,{method:'POST',mode:'no-cors',body});   // Google Forms doesn't return a readable reply to other sites
+    return;
+  }
+  if(backend==='formspree'){
+    const r=await fetch(CFG.formspree,{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify({postcode:rec.pc,office:rec.office,issue:typeLabel,latitude:rec.lat,longitude:rec.lon,details:rec.note,email:rec.email,_replyto:rec.email,_subject:'Postcode correction '+rec.pc})});
+    if(!r.ok) throw new Error('formspree '+r.status);
+    return;
+  }
+  location.href=`mailto:${CFG.email}?subject=${encodeURIComponent('Postcode correction '+rec.pc)}&body=${encodeURIComponent(`Postcode: ${rec.pc} (${rec.office})\nIssue: ${typeLabel}\nLocation: ${rec.lat??''}, ${rec.lon??''}\nDetails: ${rec.note}\nFrom: ${rec.email}`)}`;
+}
+$('fSend').onclick=async()=>{
+  if(!backend) return;
+  const pc=$('fPc').value.trim(), s=statusOf(pc), type=$('fType').value, note=$('fNote').value.trim(), email=$('fEmail').value.trim();
+  const m=$('fLatLon').value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+  if(!s) return fail('Enter a postcode from the official list, for example 75400.');
+  if((type==='office_location'||type==='locate_missing') && !m) return fail('Add the correct location: pick it on the map or paste coordinates.');
+  if(m && (+m[1]<23||+m[1]>37.5||+m[2]<60||+m[2]>78)) return fail('That location isn’t in Pakistan. Check the latitude and longitude.');
+  if(!m && !note) return fail('Add a location or a few words about what’s wrong.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('Enter a valid email address so we know who sent this.');
+  try{ localStorage.setItem('pc_email',email); }catch(_){}
+  const rec={pc,office:s[1],type,lat:m?+(+m[1]).toFixed(5):null,lon:m?+(+m[2]).toFixed(5):null,note:note.slice(0,1000),email,created:new Date().toISOString()};
+  $('fSend').disabled=true; $('fMsg').className='msg'; $('fMsg').textContent='Sending…';
+  try{
+    await send(rec);
+    try{ const a=loadMine(); a.push(rec); localStorage.setItem('pc_sent',JSON.stringify(a.slice(-50))); }catch(_){}
+    renderMine();
+    $('fMsg').className='msg'; $('fMsg').textContent=backend==='email'?'Your email app should open with the correction filled in. Press send there.':`Thanks. Your correction for ${pc} was sent.`;
+    $('fNote').value=''; $('fLatLon').value=''; if(pickMarker){ map.removeLayer(pickMarker); pickMarker=null; }
+  }catch(e){ fail('Couldn’t send it. Check your connection and try again.'); }
+  finally{ $('fSend').disabled=false; }
+};
+legend();
+const h=location.hash.slice(1); if(/^\d{5}$/.test(h)) select(h);
+})();
+</script>
+</body>
+</html>
