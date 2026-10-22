@@ -20,7 +20,7 @@ window.MAP_CONFIG = {
         email:    ""
       }
     },
-    formspree: "",           // e.g. "https://formspree.io/f/abcdwxyz"
+    formspree: "https://formspree.io/f/xqpevwnl",           // e.g. "https://formspree.io/f/abcdwxyz"
     email: ""                // e.g. "postcodes@example.com"
   }
 };
